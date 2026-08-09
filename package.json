@@ -1,0 +1,59 @@
+{
+  "name": "everypage-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for EveryPage - let AI agents upload PDFs, mint tracked share links, and read readership analytics.",
+  "mcpName": "co.everypage/mcp",
+  "license": "MIT",
+  "author": "EveryPage (https://everypage.co)",
+  "homepage": "https://everypage.co/integrations/mcp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EveryPageApp/everypage-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/EveryPageApp/everypage-mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "model-context-protocol",
+    "everypage",
+    "pdf",
+    "share-links",
+    "document-tracking",
+    "pdf-analytics",
+    "readership",
+    "docsend-alternative"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "everypage-mcp": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "server.json"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "prepare": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "inspector": "npm run build && npx @modelcontextprotocol/inspector node dist/cli.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.9"
+  }
+}

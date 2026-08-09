@@ -1,0 +1,40 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "co.everypage/mcp",
+  "title": "EveryPage",
+  "description": "Share PDFs as tracked links and see who read them, how far they got, and where they stopped.",
+  "version": "0.1.0",
+  "websiteUrl": "https://everypage.co/integrations/mcp",
+  "repository": {
+    "url": "https://github.com/EveryPageApp/everypage-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "everypage-mcp",
+      "version": "0.1.0",
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        {
+          "name": "EVERYPAGE_API_KEY",
+          "description": "EveryPage API key (ep_live_...), created at https://everypage.co/account. An OAuth access token (ep_at_...) also works, limited to its granted scopes.",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "EVERYPAGE_BASE_URL",
+          "description": "API origin override, for self-hosted or development instances.",
+          "isRequired": false,
+          "default": "https://everypage.co"
+        },
+        {
+          "name": "EVERYPAGE_READ_ONLY",
+          "description": "Set to true to expose only the read-only tools (no upload, no changes, no deletion).",
+          "isRequired": false,
+          "default": "false"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+node_modules
+dist
+tsconfig.tsbuildinfo
+.DS_Store
+npm-debug.log*
+.env
+*.tgz
+
+# MCP registry DNS-auth signing key for the co.everypage/* namespace.
+# Never commit this - it is the credential for the whole namespace.
+key.pem
