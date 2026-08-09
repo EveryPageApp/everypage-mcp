@@ -43,18 +43,46 @@ EVERYPAGE_API_KEY=ep_live_... npm run inspector
 
 ## 2. npm
 
-Publishing is done by CI, not by hand: `.github/workflows/release.yml` fires on a
-published GitHub release and uses **npm Trusted Publishers (OIDC)** — no token is
-stored anywhere.
+Steady state is CI: `.github/workflows/release.yml` fires on a published GitHub
+release and uses **npm Trusted Publishers (OIDC)** — no token stored anywhere.
 
-One-time setup on npmjs.com, under the package's settings → Trusted Publishers:
-add `EveryPageApp/everypage-mcp` with workflow `release.yml`.
+**The very first release cannot work that way.** Trusted Publishers is a
+*per-package* settings page, so the package has to exist on npm before it can be
+configured — and a brand-new name does not. So the first publish is manual, and
+provenance starts from the version after it. (Same reason `n8n-nodes-everypage`
+has provenance only from a later version.)
 
-To release:
+### First release only
+
+1. Push this repo to `github.com/EveryPageApp/everypage-mcp` **first** — the
+   workflow file has to exist at `.github/workflows/release.yml` before the npm
+   settings page will accept it.
+2. Publish once by hand, as the `everypage` npm account:
+
+   ```bash
+   npm login                     # the EveryPage npm account
+   npm publish --access public   # no --provenance: that needs CI's OIDC exchange
+   ```
+
+3. npmjs.com → Packages → `everypage-mcp` → Settings → **Trusted publishing** →
+   GitHub Actions. Every field is case-sensitive and must match exactly:
+
+   | Field | Value |
+   | --- | --- |
+   | Organization or user | `EveryPageApp` |
+   | Repository | `everypage-mcp` |
+   | Workflow filename | `release.yml` |
+   | Allowed actions | `npm publish` |
+   | Environment name | *(blank)* |
+
+4. Cut the next patch through CI so a released version carries provenance
+   (see below). A package may have only **one** trusted publisher at a time.
+
+### Every release after that
 
 ```bash
-git tag v0.1.0 && git push origin v0.1.0
-gh release create v0.1.0 --generate-notes
+git tag v0.1.1 && git push origin v0.1.1
+gh release create v0.1.1 --generate-notes
 ```
 
 Then confirm the published tarball actually carries the ownership marker — the
@@ -63,6 +91,10 @@ registry reads this exact field:
 ```bash
 npm view everypage-mcp mcpName     # must print co.everypage/mcp
 ```
+
+Note: rewriting this repo's history changes the commit SHAs and **invalidates the
+provenance** of anything already published from them — cut a fresh patch release
+if that ever happens.
 
 ## 3. MCP registry
 
