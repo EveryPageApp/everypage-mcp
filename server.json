@@ -3,7 +3,7 @@
   "name": "co.everypage/mcp",
   "title": "EveryPage",
   "description": "Share PDFs as tracked links and see who read them, how far they got, and where they stopped.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "websiteUrl": "https://everypage.co/integrations/mcp",
   "repository": {
     "url": "https://github.com/EveryPageApp/everypage-mcp",
@@ -13,7 +13,7 @@
     {
       "registryType": "npm",
       "identifier": "everypage-mcp",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "transport": { "type": "stdio" },
       "environmentVariables": [
         {
