@@ -80,9 +80,14 @@ has provenance only from a later version.)
 
 ### Every release after that
 
+Tag from `package.json` rather than typing a literal, so the tag can never
+lag the four places the version actually lives (`package.json`, `server.json`
+twice, and `SERVER_VERSION` in `src/server.ts` — bump all four first):
+
 ```bash
-git tag v0.1.1 && git push origin v0.1.1
-gh release create v0.1.1 --generate-notes
+V="v$(node -p "require('./package.json').version")"
+git tag "$V" && git push origin "$V"
+gh release create "$V" --generate-notes
 ```
 
 Then confirm the published tarball actually carries the ownership marker — the

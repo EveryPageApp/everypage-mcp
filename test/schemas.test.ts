@@ -35,7 +35,7 @@ describe("tool surface", () => {
       everypage_delete_file: ["file", "purge"],
       everypage_delete_variant: ["file", "redact", "variant"],
       everypage_get_file: ["file"],
-      everypage_get_readership: ["file", "includePages"],
+      everypage_get_readership: ["file", "includePages", "includeProofing"],
       everypage_list_events: ["file", "limit", "since", "type"],
       everypage_list_files: ["limit", "query"],
       everypage_list_variants: ["file"],

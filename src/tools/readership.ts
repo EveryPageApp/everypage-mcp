@@ -18,7 +18,15 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { EveryPageApiError } from "../http.js";
 import { bar, humanDuration, paragraphs, pct, plural, relativeTime, sample, shortTimestamp } from "../format.js";
 import { resolveFile } from "../resolve.js";
-import type { EventType, FunnelPoint, PageReport, ReadEvent, ReadershipReport } from "../types.js";
+import type {
+  AnnotationsReport,
+  EventType,
+  FunnelPoint,
+  PageMarksReport,
+  PageReport,
+  ReadEvent,
+  ReadershipReport,
+} from "../types.js";
 import { guard, ok, type ToolContext, type ToolResult } from "./context.js";
 
 /**
@@ -50,10 +58,59 @@ function funnelSparkline(funnel: FunnelPoint[]): string {
     .join("   ");
 }
 
+/**
+ * Renders proofing feedback as the thing the asker actually wants: which pages
+ * were chosen, which were rejected, and who said so - not a row dump (D21).
+ * Page numbers are listed because "pages 2, 7 and 11" is the answer to "which
+ * shots did they pick?", whereas a count is not.
+ */
+function summarizeProofing(
+  marks: PageMarksReport | undefined,
+  annotations: AnnotationsReport | undefined,
+): string | null {
+  const lines: string[] = [];
+  const totals = marks?.totals;
+  const marked = (totals?.pick ?? 0) + (totals?.reject ?? 0) + (totals?.maybe ?? 0);
+
+  if (marked > 0) {
+    lines.push(
+      `Proofing: ${plural(totals?.pick ?? 0, "pick")} · ${plural(totals?.reject ?? 0, "reject")} · ${totals?.maybe ?? 0} maybe`,
+    );
+    for (const viewer of marks?.viewers ?? []) {
+      const byVerdict = (want: string) =>
+        viewer.marks.filter((m) => m.mark === want).map((m) => m.page).sort((a, b) => a - b);
+      const picked = byVerdict("pick");
+      const rejected = byVerdict("reject");
+      const maybe = byVerdict("maybe");
+      const bits = [
+        picked.length ? `picked ${picked.join(", ")}` : null,
+        rejected.length ? `rejected ${rejected.join(", ")}` : null,
+        maybe.length ? `unsure on ${maybe.join(", ")}` : null,
+      ].filter(Boolean);
+      if (bits.length) lines.push(`  ${viewer.identity}: ${bits.join("; ")}`);
+    }
+  }
+
+  const notes = (annotations?.pages ?? []).flatMap((p) =>
+    p.annotations.map((a) => ({ page: p.page, ...a })),
+  );
+  if (notes.length) {
+    lines.push(`${plural(notes.length, "annotation")} left on the document:`);
+    for (const n of notes.slice(0, 8)) {
+      lines.push(`  p.${n.page} ${n.identity}${n.note ? `: "${n.note}"` : ""}`);
+    }
+    if (notes.length > 8) lines.push(`  …and ${notes.length - 8} more.`);
+  }
+
+  return lines.length ? lines.join("\n") : null;
+}
+
 function summarizeReadership(
   report: ReadershipReport,
   pages: PageReport | undefined,
   fileName: string,
+  marks?: PageMarksReport,
+  annotations?: AnnotationsReport,
 ): string {
   const summary = report.summary ?? {};
   const tier = report.tier ?? "free";
@@ -120,6 +177,10 @@ function summarizeReadership(
     parts.push(`Countries: ${top.join(", ")}${report.countries.length > 5 ? ", …" : ""}`);
   }
 
+  // --- proofing feedback (Pro, opt-in) ---
+  const proofing = summarizeProofing(marks, annotations);
+  if (proofing) parts.push(proofing);
+
   // --- per-recipient attribution (Pro) ---
   if (report.variants?.length) {
     const rows = [...report.variants]
@@ -173,6 +234,14 @@ export function registerReadershipTools(server: McpServer, ctx: ToolContext): vo
           .boolean()
           .optional()
           .describe("Also fetch per-page statistics to find the most re-read page. Default true. Requires the Basic plan or higher."),
+        includeProofing: z
+          .boolean()
+          .optional()
+          .describe(
+            "Also fetch proofing feedback: which pages readers marked pick/reject/maybe, and the annotations they drew. " +
+              "Default false - turn it on to answer \"which shots did they choose?\", \"what did the client reject?\" or " +
+              "\"what feedback did they leave?\". Requires the Pro plan.",
+          ),
       },
       outputSchema: {
         fileUuid: z.string(),
@@ -200,10 +269,14 @@ export function registerReadershipTools(server: McpServer, ctx: ToolContext): vo
         pages: z.array(z.object({}).passthrough()).optional(),
         countries: z.array(z.object({}).passthrough()).optional(),
         variants: z.array(z.object({}).passthrough()).optional(),
+        pageMarks: z.array(z.object({}).passthrough()).optional(),
+        markViewers: z.array(z.object({}).passthrough()).optional(),
+        markTotals: z.object({}).passthrough().optional(),
+        annotations: z.array(z.object({}).passthrough()).optional(),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    guard(ctx, { action: "reading the document's readership", scope: "readership:read" }, async ({ file: input, includePages }): Promise<ToolResult> => {
+    guard(ctx, { action: "reading the document's readership", scope: "readership:read" }, async ({ file: input, includePages, includeProofing }): Promise<ToolResult> => {
       const resolved = await resolveFile(ctx.http, input);
       const report = await ctx.http.json<ReadershipReport>({
         method: "GET",
@@ -224,11 +297,35 @@ export function registerReadershipTools(server: McpServer, ctx: ToolContext): vo
         }
       }
 
+      // Proofing feedback is Pro and opt-in: most documents never enable page
+      // marks, so fetching it by default would spend two requests per call to
+      // learn nothing. Same 403-tolerance as page stats above - a plan that
+      // cannot see it must not sink the whole report.
+      let marks: PageMarksReport | undefined;
+      let annotations: AnnotationsReport | undefined;
+      if (includeProofing === true) {
+        const proofing = await Promise.all(
+          (["page-marks", "annotations"] as const).map(async (path) => {
+            try {
+              return await ctx.http.json<PageMarksReport & AnnotationsReport>({
+                method: "GET",
+                path: `/api/v1/files/${encodeURIComponent(resolved.uuid)}/${path}`,
+              });
+            } catch (err) {
+              if (err instanceof EveryPageApiError && err.status === 403) return undefined;
+              throw err;
+            }
+          }),
+        );
+        marks = proofing[0];
+        annotations = proofing[1];
+      }
+
       const fileName = report.file?.originalName ?? resolved.file?.originalName ?? "(unnamed)";
       const summary = report.summary ?? {};
       const drop = report.funnel ? steepestDrop(report.funnel) : null;
 
-      return ok(summarizeReadership(report, pages, fileName), {
+      return ok(summarizeReadership(report, pages, fileName, marks, annotations), {
         fileUuid: resolved.uuid,
         fileName,
         ...(report.tier !== undefined ? { tier: report.tier } : {}),
@@ -238,6 +335,10 @@ export function registerReadershipTools(server: McpServer, ctx: ToolContext): vo
         ...(pages?.pages ? { pages: pages.pages } : {}),
         ...(report.countries ? { countries: report.countries } : {}),
         ...(report.variants ? { variants: report.variants } : {}),
+        ...(marks?.pages ? { pageMarks: marks.pages } : {}),
+        ...(marks?.viewers ? { markViewers: marks.viewers } : {}),
+        ...(marks?.totals ? { markTotals: marks.totals } : {}),
+        ...(annotations?.pages ? { annotations: annotations.pages } : {}),
       });
     }),
   );

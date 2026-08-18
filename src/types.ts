@@ -185,3 +185,24 @@ export interface PageReport {
   pages?: PageStat[];
   totalPages?: number;
 }
+
+/**
+ * Proofing feedback (Pro): the verdicts and annotations readers left on a
+ * document's pages. Deliberately a pull - `proofing.updated` fires once per
+ * viewer, on their first mark, and carries no verdicts.
+ *
+ * `identity` is an invitee's email address for readers who arrived through an
+ * email invite, and a pseudonymous label otherwise. Personal data either way.
+ */
+export interface PageMarksReport {
+  pages?: { page: number; pick: number; reject: number; maybe: number }[];
+  viewers?: { identity: string; marks: { page: number; mark: string }[] }[];
+  totals?: { pick?: number; reject?: number; maybe?: number };
+}
+
+export interface AnnotationsReport {
+  pages?: {
+    page: number;
+    annotations: { uuid: string; identity: string; note?: string; createdAt?: string }[];
+  }[];
+}
