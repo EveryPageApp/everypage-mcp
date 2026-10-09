@@ -664,6 +664,38 @@ describe("webhooks and account", () => {
     expect(h.text(result)).toMatch(/only delivers while the account is on the Pro plan/);
   });
 
+  it("subscribes to file.opened and says what the endpoint will receive", async () => {
+    const h = (active = await harness([
+      USER_ROUTE,
+      route("POST", "/api/v1/webhooks", { status: 201, body: { webhook: { uuid: "w1" }, secret: "whsec_x" } }),
+    ]));
+
+    const result = await h.call("everypage_manage_webhook", {
+      action: "create",
+      url: "https://hooks.example.com/ep",
+      events: ["file.opened", "file.viewed"],
+    });
+
+    expect(result.isError).toBeFalsy();
+    const post = h.stub.requests.find((r) => r.method === "POST" && r.path === "/api/v1/webhooks");
+    expect(post?.body).toMatchObject({ events: ["file.opened", "file.viewed"] });
+    expect(h.text(result)).toMatch(/will receive: file\.opened, file\.viewed\./);
+  });
+
+  it("lists file.opened among the kinds when no event is given", async () => {
+    const h = (active = await harness([USER_ROUTE]));
+
+    const result = await h.call("everypage_manage_webhook", {
+      action: "create",
+      url: "https://hooks.example.com/ep",
+      events: [],
+    });
+
+    expect(result.isError).toBe(true);
+    expect(h.text(result)).toMatch(/Available: file\.opened, file\.viewed,/);
+    expect(h.stub.requests.filter((r) => r.method === "POST")).toHaveLength(0);
+  });
+
   it("surfaces failing endpoints so a dead automation is diagnosable", async () => {
     const h = (active = await harness([
       USER_ROUTE,

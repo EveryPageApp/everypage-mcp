@@ -19,6 +19,7 @@ import type { Webhook, WebhookCreateResult, WebhookTestResult } from "../types.j
 import { guard, ok, type ToolContext, type ToolResult } from "./context.js";
 
 const EVENT_KINDS = [
+  "file.opened",
   "file.viewed",
   "file.downloaded",
   "gate.completed",
@@ -94,7 +95,7 @@ export function registerWebhookTools(server: McpServer, ctx: ToolContext): void 
         title: "Create, test or delete a webhook",
         description:
           "Manage where EveryPage sends event notifications. Create an endpoint to receive signed deliveries when a " +
-          "document is read, downloaded or a lead is captured; send a test delivery to check an endpoint is reachable; " +
+          "document is opened, read, downloaded or a lead is captured; send a test delivery to check an endpoint is reachable; " +
           "or delete one. Creating returns a signing secret that is shown only once.",
         inputSchema: {
           action: z.enum(["create", "test", "delete"]).describe("What to do."),
@@ -103,7 +104,9 @@ export function registerWebhookTools(server: McpServer, ctx: ToolContext): void 
             .array(z.enum(EVENT_KINDS))
             .optional()
             .describe(
-              "create: which events to deliver. gate.completed (captured leads) requires the Pro plan at the time the event happens.",
+              "create: which events to deliver. file.opened fires the moment a reader opens a document; file.viewed fires when " +
+                "their reading session ends and carries pages viewed and time spent. gate.completed (captured leads) requires " +
+                "the Pro plan at the time the event happens.",
             ),
           format: z
             .enum(["json", "slack"])
