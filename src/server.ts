@@ -16,7 +16,7 @@ import { registerWebhookTools } from "./tools/webhooks.js";
 import type { ToolContext } from "./tools/context.js";
 
 export const SERVER_NAME = "everypage";
-export const SERVER_VERSION = "1.1.0";
+export const SERVER_VERSION = "1.1.1";
 
 export interface BuildOptions {
   /** Injectable fetch, for tests. */

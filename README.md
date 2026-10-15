@@ -9,7 +9,14 @@ how long they spent, and which page they stopped on.
 
 ## § 01 Install
 
-Get an API key from [everypage.co/account](https://everypage.co/account) — it
+**No install: the hosted server.** EveryPage also runs this server at
+`https://everypage.co/mcp` (Streamable HTTP, OAuth sign-in, no API key). In
+Claude, open Customize → Connectors → Add custom connector and paste that URL;
+in Claude Code, `claude mcp add --transport http everypage https://everypage.co/mcp`.
+See [everypage.co/integrations/claude](https://everypage.co/integrations/claude).
+Uploads there take an https link rather than a local file path.
+
+**This package (stdio).** Get an API key from [everypage.co/account](https://everypage.co/account) — it
 looks like `ep_live_…`. Then point your client at the server.
 
 **Claude Code**
